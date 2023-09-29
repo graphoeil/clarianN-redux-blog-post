@@ -1,7 +1,6 @@
 // Imports
-import React, { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchPosts } from "./postsSlice";
+import React from "react";
+import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import PostAuthor from "./PostAuthor";
 import TimeAgo from "./TimeAgo";
@@ -32,16 +31,6 @@ const PostsList = () => {
 
 	// Store
 	const { posts, status, error } = useSelector((store) => { return store.posts; });
-
-	// Dispatch
-	const dispatch = useDispatch();
-
-	// Fetch posts from API
-	useEffect(() => {
-		if (status === 'idle'){
-			dispatch(fetchPosts());
-		}
-	}, [dispatch, status]);
 
 	// Sorting the post (by most recent date)
 	// Slice return a new array, with a shallow copy of this original array
