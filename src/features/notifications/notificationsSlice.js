@@ -44,7 +44,7 @@ const notificationsSlice = createSlice({
 				// Set isNew to not read property,
 				// In NotificationsList, useLayoutEffect dispatch
 				// allNotificationsRead after the component render
-				// which set all old notification to read = false ;-)
+				// which set all old notification to read = true ;-)
 				notification.isNew = !notification.read;
 			});
 		});
