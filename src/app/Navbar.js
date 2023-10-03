@@ -2,21 +2,23 @@
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchNotifications } from "../features/notifications/notificationsSlice";
+
+// RTK Query
+import { fetchNotificationsWebsocket, selectNotificationsMetadata, 
+	useGetNotificationsQuery } from "../features/notifications/notificationsSlice";
 
 // Component
 const Navbar = () => {
 
-	// Store
-	const notifications = useSelector((store) => { return store.notifications; });
+	// RTK Query
+	useGetNotificationsQuery();
+	const notificationsMetadata = useSelector(selectNotificationsMetadata);
+	const numUnreadNotifications = notificationsMetadata.filter((notication) => {
+		return !notication.read;
+	}).length;
 
 	// Dispatch
 	const dispatch = useDispatch();
-
-	// Badge
-	const numUnreadNotifications = notifications.filter((notication) => {
-		return !notication.read;
-	}).length;
 
 	// Links
 	const blogLinks = [
@@ -55,7 +57,7 @@ const Navbar = () => {
 							})
 						}
 					</div>
-					<button className="button" onClick={ () => { dispatch(fetchNotifications()); } }>
+					<button className="button" onClick={ () => { dispatch(fetchNotificationsWebsocket()); } }>
 						Refresh notifications
 					</button>
 				</div>

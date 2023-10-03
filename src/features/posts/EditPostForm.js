@@ -1,8 +1,9 @@
 // Imports
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { postUpdated } from "./postsSlice";
+
+// RTK Query
+import { useEditPostMutation, useGetPostQuery } from "../../api/apiSlice";
 
 // Component
 const EditPostForm = () => {
@@ -10,21 +11,14 @@ const EditPostForm = () => {
 	// PostID
 	const { postId } = useParams();
 
-	// Store
-	const { posts } = useSelector((store) => { return store.posts; });
-
-	// Post
-	const post = posts.find((post) => {
-		return post.id === postId;
-	});
-
-	// Dispatch
-	const dispatch = useDispatch();
+	// RTK Query
+	const { data:post } = useGetPostQuery(postId);
+	const [updatePost] = useEditPostMutation();
 
 	// Form state
 	const [formData, setFormData] = useState({
-		title:post.title,
-		content:post.content
+		title:post.title || '',
+		content:post.content || ''
 	});
 
 	// Inputs change
@@ -36,14 +30,14 @@ const EditPostForm = () => {
 
 	// Submit form
 	const navigate = useNavigate();
-	const submitForm = (e) => {
+	const submitForm = async(e) => {
 		e.preventDefault();
 		// Variables
 		const { title, content } = formData;
 		// Is title and content
 		if (!title || !content){ return; }
-		// Dispatch
-		dispatch(postUpdated({ id:postId, title, content }));
+		// Edit post RTK Query
+		await updatePost({ id:postId, title, content });
 		// Navigate to post page
 		navigate(`/posts/${ postId }`);
 	};

@@ -1,7 +1,10 @@
 // Imports
-import React from "react";
+import React, { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+
+// RTK Query
+import { useGetPostsQuery } from "../../api/apiSlice";
+import { useGetUsersQuery } from "../../features/users/usersSlice";
 
 // User post
 let UserPost = ({ id, title }) => {
@@ -18,22 +21,26 @@ UserPost = React.memo(UserPost);
 // Component
 const UserPage = () => {
 
-	// Store
-	const users = useSelector((store) => { return store.users; });
-	const { posts } = useSelector((store) => { return store.posts; });
-
 	// UserId
 	const { userId } = useParams();
 
-	// This user
-	const user = users.find((user) => {
-		return user.id === userId;
-	});
+	// User
+	const { data:users } = useGetUsersQuery();
+	const { data:posts } = useGetPostsQuery();
 
-	// This user posts
-	const userPosts = posts.filter((post) => {
-		return post.user === userId;
-	});
+	// RTK Query
+	// This user
+	const user = useMemo(() => {
+		return users.find((user) => {
+			return user.id === userId;
+		});
+	}, [users, userId]);
+	// This user posts with useMemo (optimization)
+	const userPosts = useMemo(() => {
+		return posts.filter((post) => {
+			return post.user === userId;
+		});
+	}, [posts, userId]);
 	
 	// Return
 	return(

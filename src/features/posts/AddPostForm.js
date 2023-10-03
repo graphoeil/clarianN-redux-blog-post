@@ -1,20 +1,21 @@
 // Imports
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { addPost } from "./postsSlice";
+
+// RTK Query
+import { useAddPostMutation } from "../../api/apiSlice";
+import { useGetUsersQuery } from "../users/usersSlice";
 
 // Component
 const AddPostForm = () => {
 
-	// Store
-	const users = useSelector((store) => { return store.users; });
+	// RTK Query
+	const [addPost, { isLoading }] = useAddPostMutation();
 
-	// Dispatch
-	const dispatch = useDispatch();
+	// Users
+	const { data:users, isSuccess } = useGetUsersQuery();
 
 	// Form state
-	const [formData, setFormData] = useState({ title:'', content:'', userId:users[0]?.id || '' });
-	const [requestStatus, setRequestStatus] = useState('idle');
+	const [formData, setFormData] = useState({ title:'', content:'', userId:'' });
 	const { title, content, userId } = formData;
 
 	// Inputs change
@@ -25,7 +26,7 @@ const AddPostForm = () => {
 	};
 
 	// Can save, for disabling submit button
-	const canSave = [title, content, userId].every(Boolean) && requestStatus === 'idle';
+	const canSave = [title, content, userId].every(Boolean) && !isLoading;
 
 	// Submit form
 	const submitForm = async(e) => {
@@ -33,61 +34,62 @@ const AddPostForm = () => {
 		// Is title, content, userId and status = idle ?
 		if (canSave){
 			try {
-				// Change status
-				setRequestStatus('pending');
-				// Dispatch and await
-				// unwrap() est une méthode utilisée pour extraire la valeur résultante d'une promesse
-				await dispatch(addPost({ title, content, user:userId })).unwrap();
+				// await for RTK Query
+				await addPost({ title, content, user:userId }).unwrap();
 				// Reset form
-				setFormData({ title:'', content:'', userId:users[0]?.id || '' });
+				setFormData((oldState) => {
+					return { title:'', content:'', userId:oldState.userId };
+				});
 			} catch (error){
 				console.error('Sorry, failed to save the post => ', error);
-			} finally {
-				setRequestStatus('idle');
 			}
 		}
 	};
 
-	// Return
-	return(
-		<section>
-			<h2>Add a new post</h2>
-			<form onSubmit={ submitForm }>
-
-				{/* Title */}
-				<label htmlFor="title">Post title :</label>
-				<input type="text" name="title" id="title"
-					value={ formData.title } onChange={ handleChange } />
-				{/* Title */}
-
-				{/* Content */}
-				<label htmlFor="content">Post content :</label>
-				<textarea name="content" id="content"
-					value={ formData.content } onChange={ handleChange } />
-				{/* Content */}
-
-				{/* User */}
-				<label htmlFor="title">Author :</label>
-				<select name="userId" id="userId" defaultValue={ userId } onChange={ handleChange }>
-					{
-						users.map((user) => {
-							return <option key={ user.id } value={ user.id }>
-								{ user.name }
-							</option>;
-						})
-					}
-				</select>
-				{/* User */}
-
-				{/* Button */}
-				<button type="submit" disabled={ !canSave }>
-					Save post
-				</button>
-				{/* Button */}
-
-			</form>
-		</section>
-	);
+	// Returns
+	if (isSuccess){
+		return(
+			<section>
+				<h2>Add a new post</h2>
+				<form onSubmit={ submitForm }>
+	
+					{/* Title */}
+					<label htmlFor="title">Post title :</label>
+					<input type="text" name="title" id="title"
+						value={ formData.title } onChange={ handleChange } />
+					{/* Title */}
+	
+					{/* Content */}
+					<label htmlFor="content">Post content :</label>
+					<textarea name="content" id="content"
+						value={ formData.content } onChange={ handleChange } />
+					{/* Content */}
+	
+					{/* User */}
+					<label htmlFor="title">Author :</label>
+					<select name="userId" id="userId" onChange={ handleChange }>
+						<option value="">Select an author</option>
+						{
+							users.map((user) => {
+								return <option key={ user.id } value={ user.id }>
+									{ user.name }
+								</option>;
+							})
+						}
+					</select>
+					{/* User */}
+	
+					{/* Button */}
+					<button type="submit" disabled={ !canSave }>
+						Save post
+					</button>
+					{/* Button */}
+	
+				</form>
+			</section>
+		);
+	}
+	return null;
 
 };
 

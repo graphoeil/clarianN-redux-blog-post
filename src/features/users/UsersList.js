@@ -1,7 +1,10 @@
 // Imports
 import React from "react";
-import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
+import Spinner from "../../components/Spinner";
+
+// RTK Query
+import { useGetUsersQuery } from "./usersSlice";
 
 // User
 let User = ({ id, name }) => {
@@ -18,22 +21,41 @@ User = React.memo(User);
 // Component
 const UsersList = () => {
 
-	// Store
-	const users = useSelector((store) => { return store.users; });
+	// RTK Query
+	const { data:users, isLoading, isSuccess, isError, error } = useGetUsersQuery();
 
-	// Return
-	return(
-		<section>
-			<h2>Users</h2>
-			<ul>
-				{
-					users.map((user) => {
-						return <User key={ user.id } { ...user }/>
-					})
-				}
-			</ul>
-		</section>
-	);
+	// Returns
+	if (isLoading){
+		return(
+			<section>
+				<h2>Users</h2>
+				<Spinner/>
+			</section>
+		);
+	}
+	if (isError){
+		return(
+			<section>
+				<h2>Users</h2>
+				<div>{ error.toString() }</div>
+			</section>
+		);
+	}
+	if (isSuccess){
+		return(
+			<section>
+				<h2>Users</h2>
+				<ul>
+					{
+						users.map((user) => {
+							return <User key={ user.id } { ...user }/>
+						})
+					}
+				</ul>
+			</section>
+		);
+	}
+	return null;
 
 };
 

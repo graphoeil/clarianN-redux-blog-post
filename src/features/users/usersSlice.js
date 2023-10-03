@@ -2,6 +2,18 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { client } from "../../api/client";
 
+// RTK Query (endpoints injection)
+import { apiSlice } from "../../api/apiSlice";
+export const extendedApiSlice = apiSlice.injectEndpoints({
+	endpoints:(builder) => ({
+		// Get all users
+		getUsers:builder.query({
+			query:() => { return '/users'; }
+		})
+	})
+});
+export const { useGetUsersQuery } = extendedApiSlice;
+
 // Initial state
 const initialState = [];
 

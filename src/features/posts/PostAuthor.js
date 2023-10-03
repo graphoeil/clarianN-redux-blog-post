@@ -1,15 +1,16 @@
 // Imports
 import React from "react";
-import { useSelector } from "react-redux";
+import { useGetUsersQuery } from "../users/usersSlice";
 
 // Component
 const PostAuthor = ({ userId }) => {
 
-	// Store
-	const author = useSelector((store) => {
-		return store.users.find((user) => {
-			return user.id === userId;
-		});
+	// RTK Query
+	const { data:users } = useGetUsersQuery();
+
+	// Author
+	const author = users.find((user) => {
+		return user.id === userId;
 	});
 
 	// Return

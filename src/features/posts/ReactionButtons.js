@@ -1,7 +1,8 @@
 // Imports
 import React from "react";
-import { useDispatch } from "react-redux";
-import { reactionAdded } from "./postsSlice";
+
+// RTK Query
+import { useAddReactionsMutation } from "../../api/apiSlice";
 
 // Emojis from https://getemoji.com/
 const reactionEmojis = {
@@ -15,8 +16,8 @@ const reactionEmojis = {
 // Component
 const ReactionButtons = ({ post }) => {
 
-	// Dispatch
-	const dispatch = useDispatch();
+	// RTK Query
+	const [addReaction] = useAddReactionsMutation();
 
 	// Return
 	return(
@@ -27,7 +28,7 @@ const ReactionButtons = ({ post }) => {
 					// console.log(emoji); => 👍
 					return(
 						<button key={ name } type="button" className="muted-button reaction-button" 
-							onClick={ () => { dispatch(reactionAdded({ postId:post.id, reaction:name })) } }>
+							onClick={ () => { addReaction({ postId:post.id, reaction:name }) } }>
 							{ emoji } { post.reactions[name] }
 						</button>
 					);

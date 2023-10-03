@@ -1,11 +1,14 @@
 // Imports
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
+import classNames from "classnames";
 import PostAuthor from "./PostAuthor";
 import TimeAgo from "./TimeAgo";
 import ReactionButtons from "./ReactionButtons";
 import Spinner from "../../components/Spinner";
+
+// RTK Query
+import { useGetPostsQuery } from "../../api/apiSlice";
 
 // Post excerpts
 let PostExcerpts = ({ post }) => {
@@ -29,17 +32,23 @@ PostExcerpts = React.memo(PostExcerpts);
 // Component
 const PostsList = () => {
 
-	// Store
-	const { posts, status, error } = useSelector((store) => { return store.posts; });
+	// RTK Query replace useSelector here
+	// Refetch for re-fetching data after adding a post
+	const { data:posts = [], isLoading, isSuccess, isError, error, 
+		isFetching, refetch } = useGetPostsQuery();
 
-	// Sorting the post (by most recent date)
-	// Slice return a new array, with a shallow copy of this original array
-	const orderedPosts = posts.slice().sort((a, b) => {
-		return b.date.localeCompare(a.date);
-	});
-	
+	// Stored posts
+	// Le hook “useMemo” permet de mémoriser une variable qui sera uniquement recalculée 
+	// lorsqu'une de ses dépendances sera mise à jour.
+	const sortedPosts = useMemo(() => {
+		const sortedPosts = posts.slice().sort((a, b) => {
+			return b.date.localeCompare(a.date);
+		});
+		return sortedPosts;
+	}, [posts]);
+
 	// Returns
-	if (status === 'loading'){
+	if (isLoading){
 		return(
 			<section className="posts-list">
 				<h2>Posts</h2>
@@ -47,24 +56,39 @@ const PostsList = () => {
 			</section>
 		);
 	}
-	if (status === 'error'){
+	if (isError){
 		return(
 			<section className="posts-list">
 				<h2>Posts</h2>
-				<div>{ error }</div>
+				<div>{ error.toString() }</div>
 			</section>
 		);
 	}
-	return(
-		<section className="posts-list">
-			<h2>Posts</h2>
-			{
-				orderedPosts.map((post) => {
-					return <PostExcerpts key={ post.id } post={ post }/>
-				})
-			}
-		</section>
-	);
+	if (isSuccess){
+		const containerClass = classNames('post-container', {
+			disabled:isFetching
+		})
+		// With RTK Query we must wait for isSuccess
+		// or wait after status is not isLoading or not isError ;-)
+		return(
+			<section className="posts-list">
+				<h2>Posts</h2>
+				<button onClick={ refetch }>
+					Refetch posts
+				</button>
+				<div className={ containerClass }>
+					{
+						// Sorting the post (by most recent date)
+						// Slice return a new array, with a shallow copy of this original array
+						sortedPosts.map((post) => {
+							return <PostExcerpts key={ post.id } post={ post }/>
+						})
+					}
+				</div>
+			</section>
+		);
+	}
+	return null;
 
 };
 

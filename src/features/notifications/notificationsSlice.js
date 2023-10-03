@@ -1,58 +1,107 @@
 // Imports
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { client } from "../../api/client";
+import { createAction, createSlice, createEntityAdapter, createSelector, isAnyOf } from '@reduxjs/toolkit';
+import { forceGenerateNotifications } from '../../api/server';
+import { apiSlice } from '../../api/apiSlice';
+  
+// Action
+const notificationsReceived = createAction('notifications/notificationsReceived');
 
-// Intitial state
-const initialState = [];
+// ndpoints injection
+export const extendedApi = apiSlice.injectEndpoints({
+	endpoints: (builder) => ({
+		// Get notifications
+		getNotifications: builder.query({
+			query: () => '/notifications',
+			async onCacheEntryAdded(arg, { updateCachedData, cacheDataLoaded, cacheEntryRemoved, dispatch }){
+				// create a websocket connection when the cache subscription starts
+				const ws = new WebSocket('ws://localhost');
+				try {
+					// wait for the initial query to resolve before proceeding
+					await cacheDataLoaded;
+					// when data is received from the socket connection to the server,
+					// update our query result with the received message
+					const listener = (event) => {
+						const message = JSON.parse(event.data)
+						switch (message.type) {
+							case 'notifications': {
+								updateCachedData((draft) => {
+									// Insert all received notifications from the websocket
+									// into the existing RTKQ cache array
+									draft.push(...message.payload);
+									draft.sort((a, b) => b.date.localeCompare(a.date));
+								});
+								// Dispatch an additional action so we can track "read" state
+								dispatch(notificationsReceived(message.payload));
+								break;
+							}
+							default:break
+						}
+					}
+					ws.addEventListener('message', listener);
+				} catch {
+				// no-op in case `cacheEntryRemoved` resolves before `cacheDataLoaded`,
+				// in which case `cacheDataLoaded` will throw
+				}
+				// cacheEntryRemoved will resolve when the cache subscription is no longer active
+				await cacheEntryRemoved;
+				// perform cleanup steps once the `cacheEntryRemoved` promise resolves
+				ws.close();
+			}
+		})
+	})
+})
 
-// Async methods
-export const fetchNotifications = createAsyncThunk('notifications/fetchNotifications', async(_, thunkAPI) => {
-	try {
-		/* const [latestNotifications] = ... : C'est de la déstructuration de tableau en JS
-		Cela signifie qu'à partir du tableau retourné par getState().notifications, 
-		nous prenons le premier élément (qui semble être la dernière notification). 
-		C'est ensuite stocké dans la variable latestNotifications. */
-		const [latestNotifications] = thunkAPI.getState().notifications;
-		const latestTimestamp = latestNotifications ? latestNotifications.date : '';
-		const response = await client.get(`/fakeApi/notifications?since=${ latestTimestamp }`);
-		return response.data;
-	} catch (error){
-		return thunkAPI.rejectWithValue(error);
-	}
-});
+// Selectors
+export const { useGetNotificationsQuery } = extendedApi;
+const emptyNotifications = [];
+export const selectNotificationsResult = extendedApi.endpoints.getNotifications.select();
+const selectNotificationsData = createSelector(selectNotificationsResult,(notificationsResult) => notificationsResult.data ?? emptyNotifications);
+export const fetchNotificationsWebsocket = () => (dispatch, getState) => {
+	const allNotifications = selectNotificationsData(getState());
+	const [latestNotification] = allNotifications;
+	const latestTimestamp = latestNotification?.date ?? '';
+	// Hardcode a call to the mock server to simulate a server push scenario over websockets
+	forceGenerateNotifications(latestTimestamp);
+};
+
+// Adapters
+const notificationsAdapter = createEntityAdapter();
+const matchNotificationsReceived = isAnyOf(notificationsReceived, extendedApi.endpoints.getNotifications.matchFulfilled);
 
 // Slice
 const notificationsSlice = createSlice({
-	name:'notifications',
-	initialState,
-	reducers:{
-		// All notifications
-		allNotificationsRead:(state) => {
-			state.forEach((notification) => {
+	name: 'notifications',
+	initialState: notificationsAdapter.getInitialState(),
+	reducers: {
+		allNotificationsRead(state, _) {
+			Object.values(state.entities).forEach((notification) => {
 				notification.read = true;
 			});
-		}
+		},
 	},
-	extraReducers:(builder) => {
-		// Fetch notifications
-		builder.addCase(fetchNotifications.fulfilled, (state, { payload }) => {
-			state.push(...payload);
-			state.sort((a, b) => {
-				return b.date.localeCompare(a.date);
+	extraReducers(builder) {
+		builder.addMatcher(matchNotificationsReceived, (state, action) => {
+			// Add client-side metadata for tracking new notifications
+			const notificationsMetadata = action.payload.map((notification) => ({
+				id: notification.id,
+				read: false,
+				isNew: true,
+			}));
+			Object.values(state.entities).forEach((notification) => {
+				// Any notifications we've read are no longer new
+				notification.isNew = !notification.read
 			});
-			state.forEach((notification) => {
-				// Set isNew to not read property,
-				// In NotificationsList, useLayoutEffect dispatch
-				// allNotificationsRead after the component render
-				// which set all old notification to read = true ;-)
-				notification.isNew = !notification.read;
-			});
+			notificationsAdapter.upsertMany(state, notificationsMetadata);
 		});
 	}
-});
+})
 
 // Actions export
-export const { allNotificationsRead } = notificationsSlice.actions;
+export const { allNotificationsRead } = notificationsSlice.actions
 
 // Reducer export
-export default notificationsSlice.reducer;
+export default notificationsSlice.reducer
+
+// Selectors export
+export const { selectAll: selectNotificationsMetadata, 
+	selectEntities: selectMetadataEntities } = notificationsAdapter.getSelectors((state) => state.notifications);
